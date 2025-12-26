@@ -1,0 +1,130 @@
+fetch_capital_flow_task:
+  description: >
+    【用户原始需求】{user_query}
+
+    直接使用 search_stock_code_task 获取的确切股票代码。
+    你必须将股票代码作为 'stock_code' 参数传递给资金流采集工具。
+    默认参数：flow_type="Stock_Flow", market_type="All_Stocks", period="today"。
+    注意：本任务旨在采集目标标的的交易明细与资金流向数据，将其作为市场流动性与投资者结构的代理变量（Proxy Variable）。
+  expected_output: >
+    包含净流入额、大单占比等微观结构指标的 JSON 数据。
+  agent: data_collector
+  context:
+    - search_stock_code_task
+
+fetch_ohlcv_task:
+  description: >
+    【用户原始需求】{user_query}
+
+    直接使用 search_stock_code_task 获取的确切股票代码，严禁再次调用搜索工具。
+    获取 A 股历史 K 线数据（支持前复权）。
+    默认参数：period='daily', adjust='qfq' (前复权), start_date='20230101', end_date='20500101'。
+    工具会自动将数据保存到数据总线，并返回数据引用（data_ref）。
+    你必须将返回的原始数据引用 JSON 完整传递给下游工具，严禁自行构造或修改 data_ref。
+  expected_output: >
+    包含 data_ref 字段的数据引用 JSON 对象。
+  agent: data_collector
+  context:
+    - search_stock_code_task
+
+search_stock_code_task:
+  description: >
+    【用户原始需求】{user_query}
+
+    当用户提供股票名称（如"茅台"、"平安银行"）而非代码时，使用股票搜索工具查找对应代码。
+    这是后续所有采集任务的基础，必须首先执行。
+  expected_output: >
+    包含股票代码、名称、最新价的 JSON 列表。
+  agent: data_collector
+
+fetch_macro_data_task:
+  description: >
+    【用户原始需求】{user_query}
+
+    根据分析对象的行业属性，自主选择 1-2 个最相关的宏观经济指标进行采集。
+    支持的指标：gdp, cpi, ppi, pmi, m2, lpr, shrzgm, rmb。
+    默认获取最近 12 条数据 (limit=12)。
+    如果分析对象不需要宏观数据支持，你可以选择返回 "skipped"。
+    如果用户明确要求全量分析，则采集所有 8 个指标。
+  expected_output: >
+    包含指标名称和数据列表的 JSON。
+  agent: data_collector
+  context:
+    - search_stock_code_task
+
+calculate_indicators_task:
+  description: >
+    【用户原始需求】{user_query}
+
+    使用 fetch_ohlcv_task 返回的真实数据引用（data_ref JSON）调用技术指标计算工具。
+    !!!重要!!! 请务必解析 JSON 并提取 "data_ref" 字段的值作为参数传递（例如 "ohlcv_hist_600519"）。
+    严禁直接传递任务名称字符串（如 "fetch_ohlcv_task"），这会导致工具读取失败。
+    严禁使用任何虚构的 Key。
+  expected_output: >
+    包含技术指标数值的 JSON。
+  agent: data_analyst
+  context:
+    - fetch_ohlcv_task
+
+analyze_capital_flow_task:
+  description: >
+    【用户原始需求】{user_query}
+
+    使用 fetch_capital_flow_task 返回的数据引用，调用 DataReaderTool 读取资金流数据。
+    数据为 DataFrame 格式。
+    分析要求：
+    1. 分析资金流向的时间序列平稳性及异常值（Outliers）。
+    2. 探讨大单净流入（Net Inflow）对价格变动的潜在解释力。
+    3. 如果上下文中包含目标股票代码，尝试在数据中定位该股票的微观交易特征。
+    严禁使用“主力”、“庄家”等非学术词汇，请使用“机构投资者”或“知情交易者”代替。
+  expected_output: >
+    关于流动性特征与交易行为的描述性统计分析。
+  agent: data_analyst
+  context:
+    - fetch_capital_flow_task
+
+volatility_modeling_task:
+  description: >
+    【用户原始需求】{user_query}
+
+    使用 fetch_ohlcv_task 返回的真实数据引用（data_ref JSON）调用波动率建模工具。
+    请原封不动地传递 fetch_ohlcv_task 返回的 data_ref JSON。
+    严禁使用任何虚构的 Key。
+    工具会自动从数据总线读取 OHLCV 数据，使用 GARCH 模型分析波动率风险。
+    分析要求：
+    1. 重点关注 GARCH 模型参数的经济学含义（如波动率持续性 $\alpha + \beta$）。
+    2. 检查是否存在波动率聚集（Volatility Clustering）现象。
+  expected_output: >
+    包含 GARCH 模型参数的 JSON 以及关于模型拟合优度的简要说明。
+  agent: model_analyst
+  context:
+    - fetch_ohlcv_task
+
+generate_report_task:
+  description: >
+    【用户原始需求】{user_query}
+
+    综合前序任务的分析结果，撰写一份严谨的**《金融时间序列实证分析报告》**。
+
+    报告结构必须遵循标准的实证论文格式：
+    1. **引言与数据 (Introduction & Data Description)**：描述样本选择、数据来源（如 AKShare）、样本区间。
+    2. **方法论 (Methodology)**：简述使用的计算方法（如 GARCH 模型、流动性指标构建）。
+    3. **实证结果 (Empirical Results)**：
+       - 展示并解释波动率模型参数（需引用具体数值）。
+       - 描述资金流向（流动性）与价格的统计关系。
+    4. **结论 (Conclusion)**：
+       - 总结实证发现（例如：是否拒绝了无波动率聚集的原假设）。
+       - **严禁**包含任何形式的“投资建议”、“买入/卖出评级”或“后市预测”。
+       
+    重要约束：
+    - 必须基于上游任务提供的真实数据结论进行分析。
+    - 如果发现数据缺失或不显著，请如实陈述“受数据限制”或“结果不显著”，不得强行得出结论。
+    - 报告必须使用中文，语气客观、中立、学术化。
+  expected_output: >
+    一份结构完整、逻辑严密的 Markdown 格式实证分析报告。
+  agent: report_generator
+  context:
+    - analyze_capital_flow_task
+    - calculate_indicators_task
+    - volatility_modeling_task
+    - fetch_macro_data_task

@@ -1,0 +1,50 @@
+/* MainLayout.css */
+.main-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr 300px;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+}
+
+.sidebar {
+  background-color: var(--color-bg-secondary);
+  border-right: 1px solid var(--color-bg-card);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.right-sidebar {
+  border-right: none;
+  border-left: 1px solid var(--color-bg-card);
+  background-color: var(--color-bg-primary); /* 右侧稍微亮一点或保持一致 */
+}
+
+.center-area {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+  background-color: var(--color-bg-primary);
+}
+
+/* 响应式调整 */
+@media (max-width: 1200px) {
+  .main-layout {
+    grid-template-columns: 240px 1fr 260px;
+  }
+}
+
+@media (max-width: 900px) {
+  .main-layout {
+    grid-template-columns: 0 1fr 0; /* 移动端隐藏侧边栏，后续可加 Toggle */
+  }
+  .sidebar {
+    display: none;
+  }
+}

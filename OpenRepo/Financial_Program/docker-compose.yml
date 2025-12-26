@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  backend:
+    image: financial_program_backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    volumes:
+      - ./backend:/app
+      - ./backend/requirements.txt:/app/requirements.txt
+    command: uvicorn api.api:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    environment:
+      - MYSQL_HOST=${MYSQL_HOST}
+      - MYSQL_PORT=${MYSQL_PORT}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_DB=${REDIS_DB}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - DEEPSEEK_BASE_URL=${DEEPSEEK_BASE_URL}
+    depends_on:
+      - mysql
+      - minio
+      - redis
+    dns:
+      - 8.8.8.8
+      - 223.5.5.5
+
+  frontend:
+    image: financial_program_frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    volumes:
+      - ./frontend:/app
+    command: npx vite --host 0.0.0.0
+    ports:
+      - "5173:5173"
+    dns:
+      - 8.8.8.8
+      - 223.5.5.5
+
+  mysql:
+    image: mysql:8.0
+    container_name: mysql_docker
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+      - ./my.cnf:/etc/mysql/my.cnf
+    # 若需外部主机访问，确保防火墙已开放3306端口
+
+  minio:
+    image: minio/minio
+    container_name: minio_docker
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+    ports:
+      - "9002:9000"
+      - "9001:9001"
+    volumes:
+      - ./data/minio:/data
+
+  redis:
+    image: redis:6.2
+    container_name: redis_docker
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./data/redis:/data
+      - ./redis.conf:/etc/redis/redis.conf
+    command: ["redis-server", "/etc/redis/redis.conf", "--requirepass", "${REDIS_PASSWORD}"]
+    # 若需外部主机访问，确保防火墙已开放6379端口
