@@ -1,0 +1,31 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+*.egg-info
+
+# Node
+node_modules
+.vite
+
+# IDE
+.vscode
+.idea
+
+# 日志和缓存
+logs/
+*.log
+data/cache/
+
+# 测试
+tests/
+test_*.py
+test_*.log
+
+# macOS
+.DS_Store

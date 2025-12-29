@@ -1,9 +1,4 @@
-"""
-EasySTAT WebUI 后端 - 依赖配置
 
-主要功能：
-- 定义后端所需的 Python 依赖包
-"""
 
 fastapi>=0.104.0
 uvicorn[standard]>=0.24.0

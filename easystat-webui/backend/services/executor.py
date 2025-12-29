@@ -83,7 +83,12 @@ class CrewExecutor:
         self.stop_event.clear()
         
         # 优化：在初始化时设置 Python 路径，避免重复插入
-        src_path = f"{self.project_path}/src"
+        import os
+        src_path = os.path.join(self.project_path, "src")
+        # 确保路径是绝对路径
+        if not os.path.isabs(src_path):
+             src_path = os.path.abspath(src_path)
+             
         if src_path not in sys.path:
             sys.path.insert(0, src_path)
         

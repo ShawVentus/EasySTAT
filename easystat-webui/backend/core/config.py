@@ -37,18 +37,27 @@ class Settings:
     DEBUG: bool = os.getenv("DEBUG", "true").lower() == "true"
     
     # === CORS 配置 ===
-    CORS_ORIGINS: List[str] = [
-        "http://localhost:5173",  # Vite 默认端口
-        "http://localhost:3000",  # 备用端口
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:3000",
-    ]
-    
+    _cors_origins_str: str = os.getenv("CORS_ORIGINS", '["http://localhost:5173", "http://localhost:3000"]')
+    try:
+        import json
+        CORS_ORIGINS: List[str] = json.loads(_cors_origins_str)
+    except Exception:
+        CORS_ORIGINS: List[str] = ["*"]
+
     # === CrewAI 相关配置 ===
-    EASYSTAT_PROJECT_PATH: str = os.getenv(
+    # 动态解析项目根目录：如果环境变量是相对路径，则基于当前工作目录（假设在 backend）向上推导
+    _raw_project_path: str = os.getenv(
         "EASYSTAT_PROJECT_PATH",
-        "/Users/mac/dev/personal/br_competition/EasySTAT"
+        "../../EasySTAT"
     )
+    # 获取 backend 目录的绝对路径 (config.py在 backend/core/config.py, 所以向上两级就是 backend)
+    _backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    
+    # 如果是相对路径，则转换为绝对路径
+    if not os.path.isabs(_raw_project_path):
+        EASYSTAT_PROJECT_PATH: str = os.path.abspath(os.path.join(_backend_dir, _raw_project_path))
+    else:
+        EASYSTAT_PROJECT_PATH: str = _raw_project_path
     
     # === SSE 配置 ===
     SSE_RETRY_TIMEOUT: int = 3000  # 客户端重连间隔（毫秒）

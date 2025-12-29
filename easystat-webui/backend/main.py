@@ -19,6 +19,9 @@ EasySTAT WebUI 后端 - 应用入口
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import os
 
 from api.sse import router as sse_router
 from api.files import router as files_router
@@ -51,6 +54,50 @@ def create_app() -> FastAPI:
     app.include_router(sse_router, prefix="/api", tags=["SSE"])
     app.include_router(files_router, prefix="/api", tags=["Files"])
     
+    # 健康检查接口（放在 API 路由之后，SPA 兜底之前）
+    @app.get("/")
+    async def root():
+        """
+        健康检查接口
+        
+        Returns:
+            dict: 包含服务状态信息
+        """
+        return {"status": "ok", "message": "EasySTAT WebUI API 运行中"}
+    
+    # === 静态文件托管（Docker 部署时前端构建产物放在 static 目录）===
+    static_dir = os.path.join(os.path.dirname(__file__), "static")
+    if os.path.exists(static_dir):
+        # 挂载静态资源目录
+        assets_dir = os.path.join(static_dir, "assets")
+        if os.path.exists(assets_dir):
+            app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+        
+        # SPA 路由兜底（必须放在所有路由之后）
+        @app.get("/{full_path:path}")
+        async def serve_spa(full_path: str):
+            """
+            SPA 路由兜底，返回 index.html
+            
+            Args:
+                full_path: 请求路径
+            
+            Returns:
+                FileResponse: index.html 文件
+            """
+            # 空路径由根路由处理，不在这里返回
+            if not full_path or full_path == "":
+                return {"error": "Frontend not built"}
+            
+            # 如果是 API 请求，跳过（不应到达这里，但作为安全检查）
+            if full_path.startswith("api/"):
+                return {"error": "Not Found"}
+            
+            index_path = os.path.join(static_dir, "index.html")
+            if os.path.exists(index_path):
+                return FileResponse(index_path)
+            return {"error": "Frontend not built"}
+    
     return app
 
 
@@ -58,17 +105,7 @@ def create_app() -> FastAPI:
 app = create_app()
 
 
-@app.get("/")
-async def root():
-    """
-    健康检查接口
-    
-    Returns:
-        dict: 包含服务状态信息
-    """
-    return {"status": "ok", "message": "EasySTAT WebUI API 运行中"}
-
-
 if __name__ == "__main__":
     import uvicorn
+    # 本地开发端口 8000
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

@@ -271,7 +271,7 @@ export function useSSE(): UseSSEReturn {
    */
   const stopExecution = useCallback(async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/stop', {
+      const response = await fetch('/api/stop', {
         method: 'POST'
       });
       if (!response.ok) {

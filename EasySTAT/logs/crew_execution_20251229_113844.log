@@ -1,0 +1,86 @@
+=== EasySTAT 执行日志 [2025-12-29 11:38:44] ===
+
+[2025-12-29T11:38:45.339860] [TASK_START] 任务开始: search_stock_code_task
+--------------------------------------------------
+[2025-12-29T11:38:45.340366] [AGENT_START] 智能体: 金融数据采集专家
+任务: 【用户原始需求】分析茅台股票
+当用户提供股票名称（如"茅台"、"平安银行"）而非代码时，使用股票搜索工具查找对应代码。 这是后续所有采集任务的基础，必须首先执行。
+--------------------------------------------------
+[2025-12-29T11:38:56.007430] [TOOL_START] 工具: 股票代码搜索工具
+参数: {}
+--------------------------------------------------
+[2025-12-29T11:38:56.022215] [TOOL_FINISH] 工具: 股票代码搜索工具
+结果: [{"代码": "600519", "名称": "贵州茅台", "最新价": 1400.9, "涨跌幅": -0.49}]...
+--------------------------------------------------
+[2025-12-29T11:38:58.350172] [AGENT_COMPLETE] 智能体: 金融数据采集专家
+输出: [{"代码": "600519", "名称": "贵州茅台", "最新价": 1400.9, "涨跌幅": -0.49}]...
+--------------------------------------------------
+[2025-12-29T11:38:58.354438] [TASK_COMPLETE] 任务完成: search_stock_code_task
+--------------------------------------------------
+[2025-12-29T11:38:58.356130] [TASK_START] 任务开始: fetch_capital_flow_task
+--------------------------------------------------
+[2025-12-29T11:38:58.359643] [AGENT_START] 智能体: 金融数据采集专家
+任务: 【用户原始需求】分析茅台股票
+直接使用 search_stock_code_task 获取的确切股票代码。 你必须将股票代码作为 'stock_code' 参数传递给资金流采集工具。 默认参数：flow_type="Stock_Flow", market_type="All_Stocks", period="today"。 注意：本任务旨在采集目标标的的交易明细与资金流向数据，将其作为市场流动性与投资者结构的代理变量（Proxy Variable）。
+--------------------------------------------------
+[2025-12-29T11:39:10.132230] [TOOL_START] 工具: 股票代码搜索工具
+参数: {}
+--------------------------------------------------
+[2025-12-29T11:39:10.137596] [TOOL_FINISH] 工具: 股票代码搜索工具
+结果: [{"代码": "600519", "名称": "贵州茅台", "最新价": 1400.9, "涨跌幅": -0.49}]...
+--------------------------------------------------
+[2025-12-29T11:39:25.243594] [TOOL_START] 工具: 资金流数据采集工具
+参数: {}
+--------------------------------------------------
+[2025-12-29T11:39:25.625601] [TOOL_FINISH] 工具: 资金流数据采集工具
+结果: {"data_ref": "flow_stock_flow_all_stocks_today", "file_path": "/Users/mac/dev/personal/br_competition/easystat-webui/backend/data/shared/flow_stock_flow_all_stocks_today.json", "saved_at": "2025-12-29 11:39:25", "type": "DataFrame", "rows": 50, "columns": ["code", "name", "flow_type", "market_type", "period", "crawl_time", "latest_price", "change_percentage", "main_flow_net_amount", "main_flow_net_percentage", "extra_large_order_flow_net_amount", "extra_large_order_flow_net_percentage", "large_o...
+--------------------------------------------------
+[2025-12-29T11:39:31.727182] [AGENT_COMPLETE] 智能体: 金融数据采集专家
+输出: {
+  "code": "600519",
+  "name": "贵州茅台",
+  "flow_type": "Stock_Flow",
+  "market_type": "All_Stocks",
+  "period": "today",
+  "latest_price": 1400.9,
+  "change_percentage": -0.49,
+  "main_flow_net_amount": null,
+  "main_flow_net_percentage": null,
+  "extra_large_order_flow_net_amount": null,
+  "extra_large_order_flow_net_percentage": null,
+  "large_order_flow_net_amount": null,
+  "large_order_flow_net_percentage": null,
+  "medium_order_flow_net_amount": null,
+  "medium_order_flow_net_percentage": n...
+--------------------------------------------------
+[2025-12-29T11:39:31.731842] [TASK_COMPLETE] 任务完成: fetch_capital_flow_task
+--------------------------------------------------
+[2025-12-29T11:39:31.733257] [TASK_START] 任务开始: fetch_ohlcv_task
+--------------------------------------------------
+[2025-12-29T11:39:31.736084] [AGENT_START] 智能体: 金融数据采集专家
+任务: 【用户原始需求】分析茅台股票
+直接使用 search_stock_code_task 获取的确切股票代码，严禁再次调用搜索工具。 获取 A 股历史 K 线数据（支持前复权）。 默认参数：period='daily', adjust='qfq' (前复权), start_date='20230101', end_date='20500101'。 工具会自动将数据保存到数据总线，并返回数据引用（data_ref）。 你必须将返回的原始数据引用 JSON 完整传递给下游工具，严禁自行构造或修改 data_ref。
+--------------------------------------------------
+[2025-12-29T11:39:41.990445] [TOOL_START] 工具: K线数据获取工具
+参数: {}
+--------------------------------------------------
+[2025-12-29T11:39:42.019332] [TOOL_FINISH] 工具: K线数据获取工具
+结果: {"data_ref": "ohlcv_hist_600519", "file_path": "/Users/mac/dev/personal/br_competition/easystat-webui/backend/data/shared/ohlcv_hist_600519.json", "saved_at": "2025-12-29 11:39:42", "type": "DataFrame", "rows": 250, "columns": ["Date", "股票代码", "Open", "Close", "High", "Low", "Volume", "Amount", "Amplitude", "QuoteChange", "PriceChange", "Turnover", "stock_code"], "date_range": {"start": "2024-12-18", "end": "2025-12-26"}}...
+--------------------------------------------------
+[2025-12-29T11:39:46.316629] [AGENT_COMPLETE] 智能体: 金融数据采集专家
+输出: {"data_ref": "ohlcv_hist_600519", "file_path": "/Users/mac/dev/personal/br_competition/easystat-webui/backend/data/shared/ohlcv_hist_600519.json", "saved_at": "2025-12-29 11:39:42", "type": "DataFrame", "rows": 250, "columns": ["Date", "股票代码", "Open", "Close", "High", "Low", "Volume", "Amount", "Amplitude", "QuoteChange", "PriceChange", "Turnover", "stock_code"], "date_range": {"start": "2024-12-18", "end": "2025-12-26"}}...
+--------------------------------------------------
+[2025-12-29T11:39:46.319038] [TASK_COMPLETE] 任务完成: fetch_ohlcv_task
+--------------------------------------------------
+[2025-12-29T11:39:46.320080] [TASK_START] 任务开始: fetch_macro_data_task
+--------------------------------------------------
+[2025-12-29T11:39:46.320790] [AGENT_START] 智能体: 金融数据采集专家
+任务: 【用户原始需求】分析茅台股票
+根据分析对象的行业属性，自主选择 1-2 个最相关的宏观经济指标进行采集。 支持的指标：gdp, cpi, ppi, pmi, m2, lpr, shrzgm, rmb。 默认获取最近 12 条数据 (limit=12)。 如果分析对象不需要宏观数据支持，你可以选择返回 "skipped"。 如果用户明确要求全量分析，则采集所有 8 个指标。
+--------------------------------------------------
+[2025-12-29T11:40:12.183873] [TOOL_START] 工具: 股票代码搜索工具
+参数: {}
+--------------------------------------------------
+[2025-12-29T11:40:12.186723] [TOOL_FINISH] 工具: 股票代码搜索工具
+结果: [{"代码": "600519", "名称": "贵州茅台", "最新价": 1400.9, "涨跌幅": -0.49}]...
+--------------------------------------------------

@@ -17,8 +17,8 @@ import { WorkspaceSidebar } from './components/Sidebar/WorkspaceSidebar';
 import { ChatArea } from './components/Chat/ChatArea';
 import './App.css';
 
-// 后端 API 地址
-const API_BASE_URL = 'http://localhost:8000';
+// 后端 API 地址（使用相对路径，通过 Vite 代理转发）
+const API_BASE_URL = '';
 
 function App() {
   // 用户输入查询

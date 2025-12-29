@@ -10,8 +10,8 @@
 import { useState, useEffect } from 'react';
 import { DataPreview } from '../DataPreview';
 
-// 后端 API 基础地址
-const API_BASE_URL = 'http://localhost:8000';
+// 后端 API 基础地址（使用相对路径，通过 Vite 代理转发）
+const API_BASE_URL = '';
 
 interface FileInfo {
   name: string;

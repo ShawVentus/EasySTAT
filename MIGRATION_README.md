@@ -13,91 +13,78 @@
 
 ## 2. 代码获取
 
+## 3. 自动化安装 (Automated Installation)
+
+**推荐使用一键安装脚本**，它会自动创建 Conda 环境 (`es`) 并安装所有前后端依赖。
+
 ```bash
-# 1. 拉取代码到目标目录
-git clone <你的GitHub仓库地址> EasySTAT_Project
-cd EasySTAT_Project
+chmod +x setup_env.sh
+./setup_env.sh
 ```
 
-## 3.后端与核心环境配置 (Backend Setup)
+该脚本会自动执行以下操作：
 
-建议使用 Conda 创建隔离环境：
+1. 检查 Conda 是否安装。
+2. 创建名为 `es` 的 Python 3.10 环境。
+3. 安装 CrewAI、AKShare、FastAPI 等核心 Python 库。
+4. 安装前端 Node.js 依赖。
 
-```bash
-# 1. 创建并激活环境
-# 提示：如果使用 bash，请确保 conda init 已初始化
-conda create -n easystat python=3.10 -y
-conda activate easystat
+---
 
-# 2. 安装核心逻辑依赖
-cd EasySTAT
-# 安装 CrewAI 及其工具
-pip install "crewai[tools]==1.7.2"
-# 安装其他核心库
-pip install "akshare>=1.13.0" "tenacity>=8.2.0" "joblib>=1.3.0" "pymysql"
-# 如果使用了 pandas, numpy 等，通常会被自动依赖安装
+## 4. 核心配置 (Configuration)
 
-# 3. 配置核心环境变量 (关键一步！)
-# 注意：.env 文件通常不随 git 提交，需要手动创建
-cp .env.example .env 2>/dev/null || touch .env
-# 编辑 .env 文件，务必修改以下绝对路径为服务器上的实际路径
-nano .env
-```
+### 4.1 环境变量 (.env)
 
-**EasySTAT/.env 配置重点：**
-请检查并修改以下路径（务必将 `/Users/mac/dev/personal/br_competition` 替换为服务器实际路径）：
+项目已重构为**默认使用相对路径**，通常**无需**手动修改路径配置即可运行。
 
-- `FINANCIAL_CREW_SRC_PATH`: `<项目根目录>/EasySTAT/src`
-- `TA_ANA_PATH`: `<项目根目录>/OpenRepo/ta_ana`
-- `ARCH_MODEL_PATH`: `<项目根目录>/OpenRepo/arch_model`
-- `FINANCIAL_PROGRAM_BACKEND_PATH`: `<项目根目录>/OpenRepo/Financial_Program/backend`
-- `AKSHARE_CACHE_PATH`: `<项目根目录>/EasySTAT/data/cache`
-- `DATA_BUS_PATH`: 建议使用相对路径 `./data/shared`
-- `OPENAI_API_KEY` 等 LLM 配置：填入有效的 API Key
+1. **EasySTAT/.env** (LLM 与核心配置)
+
+   - 复制模板：`cp EasySTAT/.env.example EasySTAT/.env` (如已有则跳过)
+   - **必填项**: 只需要配置 LLM API Key，例如 `OPENAI_API_KEY`、`OPENAI_API_BASE` 等。
+   - **路径项**: 已默认为相对路径（如 `./src`），无需修改，除非您有特殊需求。
+   - **已废弃**: `FINANCIAL_PROGRAM_BACKEND_PATH` (不再需要外部爬虫依赖)。
+
+2. **easystat-webui/backend/.env** (后端配置)
+   - 复制模板：`cp easystat-webui/backend/.env.example easystat-webui/backend/.env`
+   - **跨域 (CORS)**: 默认为 `CORS_ORIGINS=["*"]`，允许所有来源访问。
+   - **项目路径**: 默认为 `EASYSTAT_PROJECT_PATH=../../EasySTAT`，无需修改。
+
+---
+
+## 5. 一键启动 (Startup)
+
+安装完成后，直接运行启动脚本：
 
 ```bash
-# 4. 安装后端 Web 服务依赖
-cd ../easystat-webui/backend
-pip install -r requirements.txt
-
-# 5. 配置后端环境变量
-cp .env.example .env
-nano .env
-```
-
-**backend/.env 配置重点：**
-
-- 确保 `EASYSTAT_PROJECT_PATH` 等路径正确（如果是相对路径 `../../EasySTAT` 则通常无需修改）。
-
-## 4. 前端环境配置 (Frontend Setup)
-
-```bash
-cd ../frontend
-
-# 1. 安装依赖
-npm install
-
-# 2. (正式部署无需此步，仅开发需要)
-# 如果只是想跑起来看效果，可以直接用 dev 模式（start.sh 默认使用 dev 模式）
-```
-
-## 5. 一键启动
-
-回到项目根目录：
-
-```bash
-cd ../..
 chmod +x start.sh
 ./start.sh
 ```
 
-- **后端** 将启动在 `http://0.0.0.0:8000`
-- **前端** 将启动在 `http://0.0.0.0:50001`
+脚本功能：
 
-确保服务器防火墙已放行 **8000** 和 **50001** 端口。
+- 自动激活 `es` Conda 环境。
+- 自动检查端口 (8000, 50001) 是否被占用。
+- 启动后端 API 服务 (绑定 `0.0.0.0:8000`)。
+- 启动前端 Web 服务 (绑定 `0.0.0.0:50001`)。
+
+成功启动后，您可以通过浏览器访问：
+
+- **前端页面**: `http://<服务器IP>:50001`
+- **后端文档**: `http://<服务器IP>:8000/docs`
+
+---
 
 ## 6. 常见问题排查
 
-1.  **路径错误**：如果报错 "File not found"，请第一时间检查 `EasySTAT/.env` 和 `easystat-webui/backend/.env` 中的绝对路径是否已更新为当前服务器路径。
-2.  **依赖缺失**：如果报错 "Module not found"，请在 conda 环境下重新 pip install 对应模块。
-3.  **端口冲突**：如果 8000 或 50001 被占用，请修改 `start.sh` 和对应的 `.env` (前端 vite config) 配置。
+1.  **ModuleNotFoundError (e.g., 'financial_crew')**:
+
+    - 请确保是通过 `./start.sh` 启动的，因为它会自动激活正确的 Conda 环境并设置 `PYTHONPATH`。
+    - 如果手动启动，请务必先 `conda activate es`。
+
+2.  **端口冲突**:
+
+    - 如果 50001 端口被占用，启动脚本会提示警告。您可以修改前端 `vite.config.ts` 中的端口配置。
+
+3.  **数据采集失败**:
+    - 确保 `EasySTAT/.env` 中的 `OPENAI_API_KEY` 有效且余额充足。
+    - 资金流数据现已使用 `akshare` 接口，无需配置外部爬虫路径。

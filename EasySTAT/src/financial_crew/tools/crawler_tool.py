@@ -1,27 +1,14 @@
-import sys
-import os
 from dotenv import load_dotenv
 import pandas as pd
 import json
 from typing import Type, Dict, Any, Union, ClassVar, List, Optional
+import akshare as ak
 
 load_dotenv()
-
-# 动态添加路径
-backend_path = os.getenv('FINANCIAL_PROGRAM_BACKEND_PATH', '/Users/mac/dev/personal/br_competition/OpenRepo/Financial_Program/backend')
-if backend_path not in sys.path:
-    sys.path.append(backend_path)
 
 from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
 from financial_crew.utils.data_bus import data_bus
-
-# 尝试导入 crawler 模块，如果失败则打印警告
-try:
-    from crawler.crawler import fetch_flow_data
-except ImportError as e:
-    print(f"警告: 无法导入 crawler.crawler: {e}")
-    fetch_flow_data = None
 
 class CrawlerToolInput(BaseModel):
     """
@@ -48,18 +35,6 @@ class CrawlerTool(BaseTool):
     description: str = "从东方财富采集个股或板块的资金流数据。返回全市场资金流排行榜（DataFrame 格式）的数据引用。"
     args_schema: Type[BaseModel] = CrawlerToolInput
     
-    # 市场类型映射常量 (使用 ClassVar 避免 Pydantic 误认为模型字段)
-    MARKET_MAPPING: ClassVar[Dict[str, int]] = {
-        "All_Stocks": 1, 
-        "SH&SZ_A_Shares": 2, 
-        "SH_A_Shares": 3,
-        "STAR_Market": 4, 
-        "SZ_A_Shares": 5, 
-        "ChiNext_Market": 6,
-        "SH_B_Shares": 7,
-        "SZ_B_Shares": 8
-    }
-    
     def _run(self, flow_type: str, market_type: str, period: str = "today") -> str:
         """
         执行资金流数据采集并保存到数据总线
@@ -74,38 +49,55 @@ class CrawlerTool(BaseTool):
         Returns:
             str: 包含 data_ref 的 JSON 字符串
         """
-        if fetch_flow_data is None:
-            return json.dumps({"error": "无法导入 crawler 模块，请检查路径配置"}, ensure_ascii=False)
-
         try:
-            # 1. 映射参数
-            is_stock_flow = flow_type == "Stock_Flow"
-            flow_choice = 1 if is_stock_flow else 2
-            market_choice = self.MARKET_MAPPING.get(market_type, 1)
+            print(f"[CrawlerTool] 开始采集: type={flow_type}, period={period}")
             
-            # 只有板块资金流 (flow_choice=2) 需要 detail_choice=1
-            detail_choice = 1 if not is_stock_flow else None
+            data = None
             
-            # 2. 执行采集
-            data = fetch_flow_data(
-                flow_type, market_type, period, 
-                pages=1,
-                flow_choice=flow_choice, 
-                market_choice=market_choice,
-                detail_choice=detail_choice
-            )
+            # 策略分支 1: 个股资金流
+            if flow_type == "Stock_Flow":
+                if period == "today":
+                    # 获取即时个股资金流排名 (包含代码、名称、最新价、主力净流入等)
+                    data = ak.stock_fund_flow_individual(symbol="即时")
+                elif period == "3d":
+                     data = ak.stock_fund_flow_individual(symbol="3日")
+                elif period == "5d":
+                     data = ak.stock_fund_flow_individual(symbol="5日")
+                elif period == "10d":
+                     data = ak.stock_fund_flow_individual(symbol="10日")
+                else:
+                    return json.dumps({"error": f"不支持的时间周期: {period}"}, ensure_ascii=False)
+
+            # 策略分支 2: 板块资金流
+            elif flow_type == "Sector_Flow":
+                if period == "today":
+                    data = ak.stock_sector_fund_flow_rank(indicator="今日")
+                elif period == "5d":
+                    data = ak.stock_sector_fund_flow_rank(indicator="5日")
+                elif period == "10d":
+                    data = ak.stock_sector_fund_flow_rank(indicator="10日")
+                else:
+                     return json.dumps({"error": f"不支持的时间周期: {period}"}, ensure_ascii=False)
             
-            if not data:
-                return json.dumps({
-                    "error": f"未采集到 {flow_type} 的有效数据", 
+            else:
+                return json.dumps({"error": f"不支持的资金流类型: {flow_type}"}, ensure_ascii=False)
+            
+            if data is None or data.empty:
+                 return json.dumps({
+                    "error": f"未采集到 {flow_type} 的有效数据 (Empty DataFrame)", 
                     "status": "failed"
                 }, ensure_ascii=False)
 
-            # 3. 生成数据 Key（统一格式，不再区分 hybrid）
+            # 3. 生成数据 Key（保持原有命名规范）
             data_key = f"flow_{flow_type.lower()}_{market_type.lower()}_{period}"
             
-            # 4. 转换为 DataFrame 并保存到数据总线
+            # 4. 确保是 DataFrame 并保存到数据总线
             df = pd.DataFrame(data)
+            
+            # 简单清洗列名，确保兼容性 (可选，但推荐)
+            # AKShare 返回的中文列名已经很规范: "序号", "代码", "名称", "最新价", "今日主力净流入-净额" 等
+            pass 
+
             ref = data_bus.save(data_key, df, category="capital_flow")
             
             print(f"[CrawlerTool] 资金流数据采集成功: {data_key}, 共 {len(df)} 条记录")
@@ -113,4 +105,6 @@ class CrawlerTool(BaseTool):
             
         except Exception as e:
             print(f"[CrawlerTool] 采集异常: {e}")
+            import traceback
+            traceback.print_exc()
             return json.dumps({"error": f"采集失败: {str(e)}"}, ensure_ascii=False)
